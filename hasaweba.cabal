@@ -1,0 +1,61 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 2fba2e89344396ea6dc0040f32c76701fb84ff5e28bd98d7c1e6b483f4192a54
+
+name:           hasaweba
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/githubuser/hasaweba#readme>
+homepage:       https://github.com/githubuser/hasaweba#readme
+bug-reports:    https://github.com/githubuser/hasaweba/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2020 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/hasaweba
+
+library
+  exposed-modules:
+      AppContext
+  other-modules:
+      Paths_hasaweba
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5,
+      wai ==3.2.2.1,
+      warp >=3.2,
+      http-types >=0.9 && <0.13,
+      mtl == 2.2.2,
+      bytestring == 0.10.10.1,
+      text == 1.2.4.0
+  default-language: Haskell2010
+
+executable hasaweba-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_hasaweba
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5,
+      hasaweba,
+      wai ==3.2.2.1,
+      warp >=3.2,
+      http-types >=0.9 && <0.13,
+      mtl == 2.2.2,
+      bytestring == 0.10.10.1,
+      text == 1.2.4.0
+  default-language: Haskell2010
