@@ -1,17 +1,22 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wall -fwarn-incomplete-patterns #-}
 
 module AppContext where
 
-import Control.Monad ((>=>)) -- SUMMON THE KALA
-import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Except
 import Control.Monad.Reader (MonadReader (..))
 import Data.Bifunctor
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text as T
+import qualified Database.SQLite.Simple as SQLite
+import Model
 
 data Config = Config
-  { db :: LBS.ByteString,
-    hardcodedResponse :: LBS.ByteString
+  { db :: String
   }
 
 newtype Env = Env
@@ -77,13 +82,37 @@ instance MonadReader Env (AppContext e) where
   reader :: (Env -> a) -> AppContext e a
   reader fn = AppContext $ \env -> pure . Right $ fn env
 
+asks :: (Env -> a) -> AppContext e a
+asks fn = AppContext $ \env -> pure . Right $ fn env
+
 instance MonadIO (AppContext e) where
   -- Lift an IO a to AppContext e a
   liftIO :: IO a -> AppContext e a
   liftIO = AppContext . const . fmap Right
 
+instance MonadError e (AppContext e) where
+  throwError e = AppContext $ const $ pure (Left e)
+  catchError app catchFn =
+    AppContext $ \env ->
+      runWithCtx app env
+        >>= \case
+          Left e -> runWithCtx (catchFn e) env
+          success -> pure success
+
 liftEither :: Either e a -> AppContext e a
 liftEither = AppContext . const . pure
 
 getConfig :: AppCtx Config
-getConfig = do config <$> ask
+getConfig = asks config
+
+catchEx :: IO a -> AppCtx a
+catchEx = first (const $ Error500 "prkl") . liftIO
+
+runDB :: (AppResource a, SQLite.FromRow a) => SQLite.Query -> Maybe [T.Text] -> AppCtx [a]
+runDB query params = do
+  db' <- db <$> getConfig
+  catchEx $
+    SQLite.open db' >>= \conn ->
+      case params of
+        Just p -> SQLite.query conn query p
+        Nothing -> SQLite.query_ conn query
