@@ -40,9 +40,9 @@ instance (ToJSON a) => ToJSON [a] where
 instance (ToJSON a) => GenericToJSON (K1 i a) where
   genericToJSON x = let jsonable = unK1 x in toJSON jsonable
 
-instance (Selector s, GenericToJSON primitive) => GenericToJSON (M1 S s primitive) where
+instance (Selector s, GenericToJSON recordValue) => GenericToJSON (M1 S s recordValue) where
   genericToJSON x =
-    let key = selName (undefined :: M1 S s primitive a)
+    let key = selName (undefined :: M1 S s recordValue a)
         value = genericToJSON (unM1 x)
      in "\"" <> key <> "\":" <> value
 
