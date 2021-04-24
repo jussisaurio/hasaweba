@@ -6,8 +6,10 @@ module Main where
 
 import AppContext
 import Control.Monad.Except (throwError)
+import qualified Data.ByteString.Lazy.Char8 as LB
 import qualified Data.Text as T
 import qualified Database.SQLite.Simple as SQLite
+import JSON (ToJSON (..))
 import Model
 import Network.HTTP.Types
   ( status200,
@@ -58,7 +60,7 @@ app :: Env -> Application
 app env' request callback = runApp (router request >>= handler) env' >>= callback . handleError
 
 respondJSON :: (ToJSON a) => a -> AppCtx Response
-respondJSON a = pure (responseLBS status200 [] (toJSON a))
+respondJSON a = pure (responseLBS status200 [] (LB.pack $ toJSON a))
 
 handler :: Route -> AppCtx Response
 handler route = case route of
