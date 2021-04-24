@@ -37,8 +37,8 @@ instance (ToJSON a) => ToJSON (Maybe a) where
 instance (ToJSON a) => ToJSON [a] where
   toJSON lst = "[" <> (intercalate "," . map toJSON $ lst) <> "]"
 
-instance (ToJSON a) => GenericToJSON (K1 i a) where
-  genericToJSON x = let jsonable = unK1 x in toJSON jsonable
+instance (ToJSON recordValue) => GenericToJSON (K1 i recordValue) where
+  genericToJSON x = let recordValue = unK1 x in toJSON recordValue
 
 instance (Selector s, GenericToJSON recordValue) => GenericToJSON (M1 S s recordValue) where
   genericToJSON x =
