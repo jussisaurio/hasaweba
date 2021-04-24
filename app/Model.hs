@@ -16,7 +16,8 @@ module Model where
 
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.ByteString.Lazy.Char8 as LB
-import Data.List (intercalate)
+import Data.Char (toLower)
+import Data.List (intercalate, isPrefixOf)
 import Data.String (IsString)
 import qualified Data.Text as T
 import Database.SQLite.Simple.FromRow
@@ -31,6 +32,12 @@ helper keys values = LB.pack . object . intercalate "," $ zipWith (\k v -> k <> 
 class (G.Generic a) => ToJSON a where
   toJSON :: a -> LBS.ByteString
 
+class GetOwnName x where
+  getOwnName :: x -> String
+
+instance Constructor c => GetOwnName (M1 C c d e) where
+  getOwnName = conName
+
 class GetFields x where
   getFields :: x -> [String]
 
@@ -41,7 +48,7 @@ instance (GetFields (a p), GetFields (b p)) => GetFields ((a :*: b) p) where
   getFields (x :*: y) = getFields x ++ getFields y
 
 instance Selector s => GetFields (M1 S s f a) where
-  getFields x = [quoteWrap $ selName x]
+  getFields x = [selName x]
 
 instance (GetValues (a p), GetValues (b p)) => GetValues ((a :*: b) p) where
   getValues (x :*: y) = getValues x ++ getValues y
@@ -72,11 +79,20 @@ instance FromRow User where
 instance FromRow Item where
   fromRow = Item <$> field <*> field
 
+defaultToJson :: (GetFields (f p), GetValues (f p), GetOwnName (M1 i1 c1 f p)) => M1 i2 c2 (M1 i1 c1 f) p -> LB.ByteString
+defaultToJson repre =
+  let meta = unM1 repre
+      rep = unM1 meta
+      ownName = map toLower . getOwnName $ meta
+      stripOwnName f = if ownName `isPrefixOf` f then drop (length ownName) f else f
+      buildObject keys values = LB.pack . object . intercalate "," $ zipWith (\k v -> k <> ":" <> v) keys values
+   in buildObject (map (map toLower . quoteWrap . stripOwnName) . getFields $ rep) (getValues $ rep)
+
 instance ToJSON User where
-  toJSON user = let rep = unM1 . unM1 . G.from in helper (getFields $ rep user) (getValues $ rep user)
+  toJSON = defaultToJson . G.from
 
 instance ToJSON Item where
-  toJSON item = let rep = unM1 . unM1 . G.from in helper (getFields $ rep item) (getValues $ rep item)
+  toJSON = defaultToJson . G.from
 
 instance (ToJSON a) => ToJSON [a] where
   toJSON [] = array ""
