@@ -89,6 +89,7 @@ arrayEnd = Just ArrayEnd <$ char ']'
 colon :: Parser Char (Maybe JSONToken)
 colon = Just Colon <$ char ':'
 
+comma :: Parser Char (Maybe JSONToken)
 comma = Just Comma <$ char ','
 
 stringToken :: Parser Char (Maybe JSONToken)

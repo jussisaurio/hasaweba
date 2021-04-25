@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
@@ -7,6 +8,7 @@
 
 module AppContext where
 
+import Control.Exception (SomeException (SomeException), try)
 import Control.Monad.Except
 import Control.Monad.Reader (MonadReader (..))
 import Data.Bifunctor
@@ -105,8 +107,12 @@ liftEither = AppContext . const . pure
 getConfig :: AppCtx Config
 getConfig = asks config
 
+-- I don't know why I have to do this, but it won't typecheck in 'catchEx' otherwise
+try' :: IO a -> IO (Either SomeException a)
+try' = try
+
 catchEx :: IO a -> AppCtx a
-catchEx = first (const $ Error500 "prkl") . liftIO
+catchEx act = liftIO (try' act) >>= either (const $ throwError (Error500 "something went wrong")) pure
 
 runDB :: (AppResource a, SQLite.FromRow a) => SQLite.Query -> Maybe [T.Text] -> AppCtx [a]
 runDB query params = do
