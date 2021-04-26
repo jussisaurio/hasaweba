@@ -6,19 +6,19 @@ module Model where
 
 import qualified Data.Text as T
 import Database.SQLite.Simple.FromRow
-import GHC.Generics (Generic)
-import JSON (ToJSON, toJSON)
+import GHC.Generics
+import JSON
 
 --- App resource definition types
 
 class AppResource a
 
-data User = User {userId :: Int, userName :: T.Text, userEmail :: T.Text} deriving (Eq, AppResource, Generic, ToJSON)
+data User = User {userId :: Int, userName :: T.Text, userEmail :: T.Text} deriving (Eq, Show, AppResource, Generic, ToJSON, FromJSON)
 
-data Item = Item {itemId :: Int, itemDescription :: T.Text} deriving (Eq, AppResource, Generic, ToJSON)
+data Item = Item {itemId :: Int, itemDescription :: T.Text} deriving (Eq, Show, AppResource, Generic, ToJSON, FromJSON)
 
--- Just to test that autoderiving our custom ToJSON instance works
-data TestRecord = Eka {foo :: T.Text} | Toka {bar :: T.Text, user :: User, maybeOtherUser :: Maybe User, items :: [Item]} deriving (Eq, Generic, ToJSON)
+-- Just to test that autoderiving our custom ToJSON and FromJSON instances works
+data TestRecord = Eka {foo :: T.Text} | Toka {bar :: T.Text, user :: User, maybeOtherUser :: Maybe User, items :: [Item]} deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 instance FromRow User where
   fromRow = User <$> field <*> field <*> field

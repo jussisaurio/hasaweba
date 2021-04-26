@@ -14,7 +14,7 @@
 module JSON where
 
 import Control.Applicative (Alternative ((<|>)))
-import Data.List (intercalate)
+import Data.List
 import Data.Maybe (catMaybes)
 import qualified Data.Text as T
 import GHC.Generics
@@ -93,7 +93,7 @@ comma :: Parser Char (Maybe JSONToken)
 comma = Just Comma <$ char ','
 
 stringToken :: Parser Char (Maybe JSONToken)
-stringToken = Just . JString <$> (prefix "\"" *> zeroOrMore (anythingBut '"') <* prefix "\"")
+stringToken = Just . JString . concat <$> (prefix "\"" *> zeroOrMore (prefix "\\\"" <|> notPrefix "\"") <* prefix "\"")
 
 numberToken :: Parser Char (Maybe JSONToken)
 numberToken = Just . JNumber . read <$> ((++) <$> intParser <*> (concat <$> maybeOne ((++) <$> prefix "." <*> posIntParser)))
@@ -179,3 +179,74 @@ jsonParse tokens = case runParser parseJSON tokens of
   Nothing -> Left "parse error"
   Just (json, []) -> Right json
   Just (_, remainder) -> Left ("parse error: remainder is " <> show remainder)
+
+-- Generic JSON to Record parser
+
+type JSONError = String
+
+class FromJSON (a :: *) where
+  fromJSON :: JSON -> Either JSONError a
+  default fromJSON :: (Generic a, GenericFromJSON (Rep a)) => JSON -> Either JSONError a
+  fromJSON = fmap to . genericFromJSON
+
+class GenericFromJSON (f :: * -> *) where
+  genericFromJSON :: JSON -> Either JSONError (f a)
+
+instance FromJSON Int where
+  fromJSON json = case json of
+    (JSONNumber n) -> if n == fromInteger (round n) then Right (round n) else Left "failed to parse Int, got a non-integer number"
+    other -> Left $ "Failed to parse Int, got " <> show other
+
+instance FromJSON T.Text where
+  fromJSON json = case json of
+    (JSONString s) -> Right $ T.pack s
+    other -> Left $ "Failed to parse Text, got " <> show other
+
+instance FromJSON String where
+  fromJSON json = case json of
+    (JSONString s) -> Right s
+    other -> Left $ "Failed to parse Text, got " <> show other
+
+instance FromJSON a => FromJSON (Maybe a) where
+  fromJSON = \case
+    JSONNull -> Right Nothing
+    other -> fromJSON other
+
+instance FromJSON a => FromJSON [a] where
+  fromJSON = \case
+    JSONArray json -> traverse fromJSON json
+    other -> Left $ "expected array, got " <> show other
+
+instance (FromJSON recordValue) => GenericFromJSON (K1 i recordValue) where
+  genericFromJSON = fmap K1 . fromJSON
+
+instance (Selector s, GenericFromJSON recordValue) => GenericFromJSON (M1 S s recordValue) where
+  genericFromJSON json =
+    let key = selName (undefined :: M1 S s recordValue a)
+     in case json of
+          (JSONObject entries) -> case snd <$> find ((== JSONKey key) . fst) entries of
+            Nothing -> Left "failed to parse selector, no matching key"
+            Just v -> M1 <$> genericFromJSON v
+          other -> Left $ "failed to parse selector, got wrong type of JSON: " <> show other
+
+instance (GenericFromJSON keyValueLeft, GenericFromJSON keyValueRight) => GenericFromJSON (keyValueLeft :*: keyValueRight) where
+  genericFromJSON json = do
+    r1 <- genericFromJSON json :: Either JSONError (keyValueLeft a)
+    r2 <- genericFromJSON json :: Either JSONError (keyValueRight b)
+    pure (r1 :*: r2)
+
+instance (Constructor c, GenericFromJSON fields) => GenericFromJSON (M1 C c fields) where
+  genericFromJSON = fmap M1 . genericFromJSON
+
+instance (GenericFromJSON constructorLeft, GenericFromJSON constructorRight) => GenericFromJSON (constructorLeft :+: constructorRight) where
+  genericFromJSON json =
+    let e1 = genericFromJSON json :: Either JSONError (constructorLeft a)
+        e2 = genericFromJSON json :: Either JSONError (constructorRight b)
+     in case (e1, e2) of
+          (Right x, Left _) -> Right $ L1 x
+          (Left _, Right x) -> Right $ R1 x
+          (Right _, Right _) -> Left "Failed to parse constructor, both branches returned Right?"
+          (Left er, Left er2) -> Left $ "Failed to parse constructor, both branches returned Left: " <> er <> " " <> er2
+
+instance GenericFromJSON constructors => GenericFromJSON (M1 D d constructors) where
+  genericFromJSON = fmap M1 . genericFromJSON

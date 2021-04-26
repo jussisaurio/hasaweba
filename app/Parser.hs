@@ -20,6 +20,11 @@ prefix str = Parser func
   where
     func x = if str `isPrefixOf` x then Just (take (length str) x, drop (length str) x) else Nothing
 
+notPrefix :: Eq a => [a] -> Parser a [a]
+notPrefix str = Parser func
+  where
+    func x = if not $ str `isPrefixOf` x then Just (take 1 x, drop 1 x) else Nothing
+
 letter :: Parser Char Char
 letter = satisfy isAlpha
 
