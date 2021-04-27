@@ -19,28 +19,29 @@ import Data.Maybe (catMaybes)
 import qualified Data.Text as T
 import GHC.Generics
 import Parser
+import Text.Read (readMaybe)
 
 -- Serializer
 class ToJSON (a :: *) where
-  toJSON :: a -> String
-  default toJSON :: (Generic a, GenericToJSON (Rep a)) => a -> String
+  toJSON :: a -> JSON
+  default toJSON :: (Generic a, GenericToJSON (Rep a)) => a -> JSON
   toJSON a = genericToJSON (from a)
 
 class GenericToJSON (f :: * -> *) where
-  genericToJSON :: f a -> String
+  genericToJSON :: f a -> JSON
 
 instance ToJSON Int where
-  toJSON = show
+  toJSON = JSONNumber . show
 
 instance ToJSON T.Text where
-  toJSON = show
+  toJSON = JSONString . T.unpack
 
 instance (ToJSON a) => ToJSON (Maybe a) where
-  toJSON Nothing = "null"
+  toJSON Nothing = JSONNull
   toJSON (Just x) = toJSON x
 
 instance (ToJSON a) => ToJSON [a] where
-  toJSON lst = "[" <> (intercalate "," . map toJSON $ lst) <> "]"
+  toJSON = JSONArray . map toJSON
 
 instance (ToJSON recordValue) => GenericToJSON (K1 i recordValue) where
   genericToJSON x = let recordValue = unK1 x in toJSON recordValue
@@ -49,24 +50,27 @@ instance (Selector s, GenericToJSON recordValue) => GenericToJSON (M1 S s record
   genericToJSON x =
     let key = selName (undefined :: M1 S s recordValue a)
         value = genericToJSON (unM1 x)
-     in "\"" <> key <> "\":" <> value
+     in JSONObject [(JSONKey key, value)]
 
 instance (GenericToJSON keyValueLeft, GenericToJSON keyValueRight) => GenericToJSON (keyValueLeft :*: keyValueRight) where
-  genericToJSON (x :*: y) = genericToJSON x <> "," <> genericToJSON y
+  genericToJSON (x :*: y) =
+    let (JSONObject entries1) = genericToJSON x
+        (JSONObject entries2) = genericToJSON y
+     in JSONObject $ entries1 ++ entries2
 
 instance (Constructor c, GenericToJSON fields) => GenericToJSON (M1 C c fields) where
-  genericToJSON x = let fields = unM1 x in "{" <> genericToJSON fields <> "}"
+  genericToJSON = genericToJSON . unM1
 
 instance (GenericToJSON constructorLeft, GenericToJSON constructorRight) => GenericToJSON (constructorLeft :+: constructorRight) where
   genericToJSON (L1 x) = genericToJSON x
   genericToJSON (R1 x) = genericToJSON x
 
 instance GenericToJSON constructors => GenericToJSON (M1 D d constructors) where
-  genericToJSON x = let constructors = unM1 x in genericToJSON constructors
+  genericToJSON = genericToJSON . unM1
 
 -- JSON Tokenizer
 
-data JSONToken = ObjectStart | ObjectEnd | ArrayStart | ArrayEnd | Colon | Comma | JString String | JNumber Double | JNull | JTrue | JFalse deriving (Eq, Show)
+data JSONToken = ObjectStart | ObjectEnd | ArrayStart | ArrayEnd | Colon | Comma | JString String | JNumber String | JNull | JTrue | JFalse deriving (Eq, Show)
 
 newline :: Parser Char (Maybe a)
 newline = Nothing <$ (prefix "\r\n" <|> prefix "\n")
@@ -96,7 +100,7 @@ stringToken :: Parser Char (Maybe JSONToken)
 stringToken = Just . JString . concat <$> (prefix "\"" *> zeroOrMore (prefix "\\\"" <|> notPrefix "\"") <* prefix "\"")
 
 numberToken :: Parser Char (Maybe JSONToken)
-numberToken = Just . JNumber . read <$> ((++) <$> intParser <*> (concat <$> maybeOne ((++) <$> prefix "." <*> posIntParser)))
+numberToken = Just . JNumber <$> ((++) <$> intParser <*> (concat <$> maybeOne ((++) <$> prefix "." <*> posIntParser)))
 
 jnull :: Parser Char (Maybe JSONToken)
 jnull = Just JNull <$ prefix "null"
@@ -117,7 +121,7 @@ tokenize input = case runParser tokenizer input of
 
 newtype JSONKey = JSONKey String deriving (Eq, Show)
 
-data JSON = JSONString String | JSONNumber Double | JSONBoolean Bool | JSONNull | JSONArray [JSON] | JSONObject [(JSONKey, JSON)] deriving (Eq, Show)
+data JSON = JSONString String | JSONNumber String | JSONBoolean Bool | JSONNull | JSONArray [JSON] | JSONObject [(JSONKey, JSON)] deriving (Eq, Show)
 
 parseNull :: Parser JSONToken JSON
 parseNull = JSONNull <$ satisfy (JNull ==)
@@ -180,6 +184,16 @@ jsonParse tokens = case runParser parseJSON tokens of
   Just (json, []) -> Right json
   Just (_, remainder) -> Left ("parse error: remainder is " <> show remainder)
 
+jsonSerialize :: JSON -> String
+jsonSerialize = \case
+  JSONNull -> "null"
+  (JSONBoolean True) -> "true"
+  (JSONBoolean False) -> "false"
+  (JSONString s) -> show s
+  (JSONNumber n) -> n
+  (JSONArray jsons) -> "[" <> intercalate "," (map jsonSerialize jsons) <> "]"
+  (JSONObject entries) -> "{" <> intercalate "," (map (\(JSONKey k, v) -> "\"" <> k <> "\":" <> jsonSerialize v) entries) <> "}"
+
 -- Generic JSON to Record parser
 
 type JSONError = String
@@ -193,8 +207,17 @@ class GenericFromJSON (f :: * -> *) where
   genericFromJSON :: JSON -> Either JSONError (f a)
 
 instance FromJSON Int where
-  fromJSON json = case json of
-    (JSONNumber n) -> if n == fromInteger (round n) then Right (round n) else Left "failed to parse Int, got a non-integer number"
+  fromJSON = \case
+    (JSONNumber n) -> case readMaybe n of
+      Nothing -> Left "Failed to parse int"
+      (Just n) -> if n == fromInteger (round n) then Right (round n) else Left "failed to parse Int, got a non-integer number"
+    other -> Left $ "Failed to parse Int, got " <> show other
+
+instance FromJSON Double where
+  fromJSON = \case
+    (JSONNumber n) -> case readMaybe n of
+      Nothing -> Left "Failed to parse double"
+      (Just n) -> Right n
     other -> Left $ "Failed to parse Int, got " <> show other
 
 instance FromJSON T.Text where

@@ -9,7 +9,7 @@ import Control.Monad.Except (throwError)
 import qualified Data.ByteString.Lazy.Char8 as LB
 import qualified Data.Text as T
 import qualified Database.SQLite.Simple as SQLite
-import JSON (ToJSON (..))
+import JSON (ToJSON (..), jsonSerialize)
 import Model
 import Network.HTTP.Types
   ( status200,
@@ -60,7 +60,7 @@ app :: Env -> Application
 app env' request callback = runApp (router request >>= handler) env' >>= callback . handleError
 
 respondJSON :: (ToJSON a) => a -> AppCtx Response
-respondJSON a = pure (responseLBS status200 [] (LB.pack $ toJSON a))
+respondJSON = pure . responseLBS status200 [] . LB.pack . jsonSerialize . toJSON
 
 handler :: Route -> AppCtx Response
 handler route = case route of
@@ -71,10 +71,10 @@ handler route = case route of
     maybeUser <- safeHead <$> runDB "SELECT * from users WHERE id = ?" (Just [uid]) :: AppCtx (Maybe User)
     case maybeUser of
       Nothing -> throwError (Error404 "not found")
-      Just user -> respondJSON user
+      Just user' -> respondJSON user'
   GetItems -> do
-    items <- runDB "SELECT * from items" Nothing :: AppCtx [Item]
-    respondJSON items
+    items' <- runDB "SELECT * from items" Nothing :: AppCtx [Item]
+    respondJSON items'
   GetItem itid -> do
     maybeItem <- safeHead <$> runDB "SELECT * from items WHERE id = ?" (Just [itid]) :: AppCtx (Maybe Item)
     case maybeItem of
