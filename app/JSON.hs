@@ -14,6 +14,7 @@
 module JSON where
 
 import Control.Applicative (Alternative ((<|>)))
+import Data.Char (toLower, toUpper)
 import Data.List
 import Data.Maybe (catMaybes)
 import qualified Data.Text as T
@@ -59,7 +60,15 @@ instance (GenericToJSON keyValueLeft, GenericToJSON keyValueRight) => GenericToJ
      in JSONObject $ entries1 ++ entries2
 
 instance (Constructor c, GenericToJSON fields) => GenericToJSON (M1 C c fields) where
-  genericToJSON = genericToJSON . unM1
+  genericToJSON x =
+    let json = genericToJSON $ unM1 x
+        ownName = conName (undefined :: M1 C c fields any)
+        removeOwnName (JSONKey k, v) = let key = if length ownName < length k && map toLower ownName `isPrefixOf` k then camelify $ drop (length ownName) k else k in (JSONKey key, v)
+        camelify "" = ""
+        camelify (x : xs) = toLower x : xs
+     in case json of
+          (JSONObject entries) -> JSONObject (map removeOwnName entries)
+          other -> other
 
 instance (GenericToJSON constructorLeft, GenericToJSON constructorRight) => GenericToJSON (constructorLeft :+: constructorRight) where
   genericToJSON (L1 x) = genericToJSON x
@@ -205,6 +214,13 @@ class FromJSON (a :: *) where
 
 class GenericFromJSON (f :: * -> *) where
   genericFromJSON :: JSON -> Either JSONError (f a)
+  withConName :: String -> JSON -> Either JSONError (f a)
+  withConName cname = \case
+    (JSONObject entries) -> genericFromJSON $ JSONObject (entries ++ mapped)
+      where
+        mapped = map (\(JSONKey k, v) -> (JSONKey (map toLower cname ++ capitalize k), v)) entries
+        capitalize "" = ""
+        capitalize (x : xs) = toUpper x : xs
 
 instance FromJSON Int where
   fromJSON = \case
@@ -259,7 +275,8 @@ instance (GenericFromJSON keyValueLeft, GenericFromJSON keyValueRight) => Generi
     pure (r1 :*: r2)
 
 instance (Constructor c, GenericFromJSON fields) => GenericFromJSON (M1 C c fields) where
-  genericFromJSON = fmap M1 . genericFromJSON
+  genericFromJSON =
+    let cname = conName (undefined :: M1 C c fields a) in fmap M1 . withConName cname
 
 instance (GenericFromJSON constructorLeft, GenericFromJSON constructorRight) => GenericFromJSON (constructorLeft :+: constructorRight) where
   genericFromJSON json =
