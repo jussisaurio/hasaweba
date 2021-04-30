@@ -1,16 +1,17 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wall -fwarn-incomplete-patterns #-}
 
 module Main where
 
-import AppContext
-import Control.Monad.Except (throwError)
+import AppContext (Config (..), Env (..), Error (..), runApp)
 import qualified Data.ByteString.Lazy.Char8 as LB
+import Data.Proxy (Proxy (..))
 import qualified Data.Text as T
 import qualified Database.SQLite.Simple as SQLite
-import JSON (ToJSON (..), jsonSerialize)
-import Model
+import FancyRouting (serve)
+import JSON (JSON, jsonSerialize)
 import Network.HTTP.Types
   ( status200,
     status404,
@@ -18,13 +19,12 @@ import Network.HTTP.Types
   )
 import Network.Wai
   ( Application,
-    Request,
     Response,
     pathInfo,
-    requestMethod,
     responseLBS,
   )
 import Network.Wai.Handler.Warp (run)
+import Routes (API, api)
 
 cfg :: Config
 cfg = Config {db = "hasa.db"}
@@ -44,55 +44,21 @@ initDB dbname = do
   SQLite.execute_ conn "INSERT INTO users (name, email) VALUES ('Jussi Saurio', 'jussi.saurio@reaktor.com'), ('Other Dude', 'other@dudeson.com')"
   SQLite.execute_ conn "INSERT INTO items (description) VALUES ('Cookies'), ('Cream')"
 
-safeHead :: [a] -> Maybe a
-safeHead [] = Nothing
-safeHead lst = Just $ head lst
-
 main :: IO ()
 main = do
   initDB (db $ config env)
   run 1337 $ app env
 
--- From WAI:
--- Application is a type alias for: Request -> (Response -> IO ResponseReceived) -> IO ResponseReceived
--- Callback is a type alias for: (Response -> IO ResponseReceived)
+proxy :: Proxy API
+proxy = Proxy
+
 app :: Env -> Application
-app env' request callback = runApp (router request >>= handler) env' >>= callback . handleError
+app env' request callback = runApp (serve proxy api (pathInfo request)) env' >>= callback . handle
 
-respondJSON :: (ToJSON a) => a -> AppCtx Response
-respondJSON = pure . responseLBS status200 [] . LB.pack . jsonSerialize . toJSON
-
-handler :: Route -> AppCtx Response
-handler route = case route of
-  GetUsers -> do
-    users <- runDB "SELECT * from users" Nothing :: AppCtx [User]
-    respondJSON users
-  GetUser uid -> do
-    maybeUser <- safeHead <$> runDB "SELECT * from users WHERE id = ?" (Just [uid]) :: AppCtx (Maybe User)
-    case maybeUser of
-      Nothing -> throwError (Error404 "not found")
-      Just user' -> respondJSON user'
-  GetItems -> do
-    items' <- runDB "SELECT * from items" Nothing :: AppCtx [Item]
-    respondJSON items'
-  GetItem itid -> do
-    maybeItem <- safeHead <$> runDB "SELECT * from items WHERE id = ?" (Just [itid]) :: AppCtx (Maybe Item)
-    case maybeItem of
-      Nothing -> throwError (Error404 "not found")
-      Just item -> respondJSON item
-
-handleError :: Either Error Response -> Response
-handleError = either _handle id
+handle :: Either Error JSON -> Response
+handle = either handleError respondJSON
   where
-    _handle = \case
+    handleError = \case
       Error404 msg -> responseLBS status404 [] msg
       Error500 _ -> responseLBS status500 [] "Something went wrong"
-
-router :: Request -> AppCtx Route
-router rq =
-  liftEither $ case (pathInfo rq, requestMethod rq) of
-    (["users", uid], "GET") -> Right (GetUser uid)
-    (["users"], "GET") -> Right GetUsers
-    (["items", itid], "GET") -> Right (GetItem itid)
-    (["items"], "GET") -> Right GetItems
-    _ -> Left $ Error404 "Not found"
+    respondJSON = responseLBS status200 [] . LB.pack . jsonSerialize

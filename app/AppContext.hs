@@ -114,7 +114,7 @@ try' = try
 catchEx :: IO a -> AppCtx a
 catchEx act = liftIO (try' act) >>= either (const $ throwError (Error500 "something went wrong")) pure
 
-runDB :: (AppResource a, SQLite.FromRow a) => SQLite.Query -> Maybe [T.Text] -> AppCtx [a]
+runDB :: (AppResource a, SQLite.FromRow a) => SQLite.Query -> Maybe [Int] -> AppCtx [a]
 runDB query params = do
   db' <- db <$> getConfig
   catchEx $
