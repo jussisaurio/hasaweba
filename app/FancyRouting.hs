@@ -11,7 +11,7 @@ import JSON
 import Text.Read
 
 -- Adapted (stolen) from https://www.well-typed.com/blog/2015/11/implementing-a-minimal-version-of-haskell-servant/
-data Get (a :: *)
+data Respond (a :: *)
 
 data a :<|> b = a :<|> b
 
@@ -25,7 +25,7 @@ data Capture (a :: *)
 
 type family Server layout :: *
 
-type instance Server (Get a) = AppCtx a
+type instance Server (Respond a) = AppCtx a
 
 type instance Server (a :<|> b) = Server a :<|> Server b
 
@@ -36,7 +36,7 @@ type instance Server (Capture a :> r) = a -> Server r
 class HasServer layout a where
   route :: Proxy layout -> Server layout -> [T.Text] -> Maybe (AppCtx a)
 
-instance (ToJSON a) => HasServer (Get a) JSON where
+instance (ToJSON a) => HasServer (Respond a) JSON where
   route _ handler [] = Just (toJSON <$> handler)
   route _ _ _ = Nothing
 
