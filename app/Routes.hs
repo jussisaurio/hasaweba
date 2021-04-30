@@ -29,13 +29,13 @@ getItem itid = do
 getItems :: AppCtx [Item]
 getItems = runDB "SELECT * from items" Nothing :: AppCtx [Item]
 
-type GetUser = "users" :> Capture Int :> Respond User
+type GetUser = GET :> "users" :> Capture Int :> Respond User
 
-type GetUsers = "users" :> Respond [User]
+type GetUsers = GET :> "users" :> Respond [User]
 
-type GetItem = "items" :> Capture Int :> Respond Item
+type GetItem = GET :> "items" :> Capture Int :> Respond Item
 
-type GetItems = "items" :> Respond [Item]
+type GetItems = GET :> "items" :> Respond [Item]
 
 type API = GetUser :<|> GetUsers :<|> GetItem :<|> GetItems
 

@@ -15,7 +15,6 @@ import Network.HTTP.Types
 import Network.Wai
   ( Application,
     Response,
-    pathInfo,
     responseLBS,
   )
 import Network.Wai.Handler.Warp (run)
@@ -48,7 +47,7 @@ proxy :: Proxy API
 proxy = Proxy
 
 app :: Env -> Application
-app env' request callback = runApp (serve proxy api (pathInfo request)) env' >>= callback . handle
+app env' request callback = runApp (serve proxy api request) env' >>= callback . handle
 
 handle :: Either Error JSON -> Response
 handle = either handleError respondJSON
