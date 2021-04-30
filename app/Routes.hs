@@ -1,16 +1,9 @@
 module Routes where
 
 import AppContext
-import Control.Applicative (Alternative ((<|>)))
 import Control.Monad.Except
-import Data.Maybe
-import Data.Proxy
-import qualified Data.Text as T
 import FancyRouting
-import GHC.TypeLits
-import JSON
 import Model
-import Text.Read
 
 safeHead :: [a] -> Maybe a
 safeHead [] = Nothing

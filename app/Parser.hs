@@ -3,7 +3,6 @@ module Parser where
 import Control.Applicative
 import Data.Char (isAlpha, isDigit, isSpace)
 import Data.List
-import Text.Read
 
 newtype Parser a t = Parser {runParser :: [a] -> Maybe (t, [a])}
 

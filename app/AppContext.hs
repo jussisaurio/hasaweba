@@ -8,12 +8,11 @@
 
 module AppContext where
 
-import Control.Exception (SomeException (SomeException), try)
+import Control.Exception (SomeException, try)
 import Control.Monad.Except
 import Control.Monad.Reader (MonadReader (..))
 import Data.Bifunctor
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Text as T
 import qualified Database.SQLite.Simple as SQLite
 import Model
 

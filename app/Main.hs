@@ -1,8 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS_GHC -Wall -fwarn-incomplete-patterns #-}
-
 module Main where
 
 import AppContext (Config (..), Env (..), Error (..), runApp)

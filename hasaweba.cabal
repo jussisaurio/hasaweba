@@ -36,6 +36,7 @@ library
       Paths_hasaweba
   hs-source-dirs:
       app
+  ghc-options: -Wall -fwarn-incomplete-patterns
   build-depends:
       base >=4.7 && <5,
       wai >=3.2,
@@ -68,7 +69,9 @@ library
     PolyKinds,
     KindSignatures,
     UndecidableInstances,
-    GADTs
+    GADTs,
+    MultiParamTypeClasses,
+    InstanceSigs
 
 executable hasaweba-exe
   main-is: Main.hs
@@ -82,7 +85,7 @@ executable hasaweba-exe
       Routes
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-incomplete-patterns
   build-depends:
       base >=4.7 && <5,
       hasaweba,
@@ -114,4 +117,6 @@ executable hasaweba-exe
     PolyKinds,
     KindSignatures,
     UndecidableInstances,
-    GADTs
+    GADTs,
+    MultiParamTypeClasses,
+    InstanceSigs
