@@ -36,7 +36,7 @@ library
       Paths_hasaweba
   hs-source-dirs:
       app
-  ghc-options: -Wall -fwarn-incomplete-patterns
+  ghc-options: -Wall -Werror -fwarn-incomplete-patterns
   build-depends:
       base >=4.7 && <5,
       wai >=3.2,
@@ -85,7 +85,7 @@ executable hasaweba-exe
       Routes
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -fwarn-incomplete-patterns
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Werror -fwarn-incomplete-patterns
   build-depends:
       base >=4.7 && <5,
       hasaweba,

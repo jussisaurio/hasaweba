@@ -52,7 +52,7 @@ instance (Constructor c, GenericToJSON fields) => GenericToJSON (M1 C c fields) 
         ownName = conName (undefined :: M1 C c fields any)
         removeOwnName (JSONKey k, v) = let key = if length ownName < length k && map toLower ownName `isPrefixOf` k then camelify $ drop (length ownName) k else k in (JSONKey key, v)
         camelify "" = ""
-        camelify (x : xs) = toLower x : xs
+        camelify (x' : xs) = toLower x' : xs
      in case json of
           (JSONObject entries) -> JSONObject (map removeOwnName entries)
           other -> other
