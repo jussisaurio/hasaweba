@@ -35,17 +35,27 @@ validateUser uid user' = do
   dbUser <- getUser uid
   if dbUser == user' then pure "Yes, it is the same user as in the DB" else throwError (Error400 "Not the same user")
 
+type UsersAPI = GetUser :<|> GetUsers :<|> ValidateUser
+
 type GetUser = GET :> "users" :> Capture Int :> Respond User JSON
 
 type GetUsers = GET :> "users" :> Respond [User] JSON
 
 type ValidateUser = POST :> "users" :> Capture Int :> "validate" :> BodyParser User :> Respond String String
 
+usersAPI :: (Int -> AppCtx User) :<|> (AppCtx [User] :<|> (Int -> User -> AppCtx String))
+usersAPI = getUser :<|> getUsers :<|> validateUser
+
+type ItemsAPI = GetItem :<|> GetItems
+
 type GetItem = GET :> "items" :> Capture Int :> Respond Item JSON
 
 type GetItems = GET :> "items" :> Respond [Item] JSON
 
-type API = GetUser :<|> GetUsers :<|> ValidateUser :<|> GetItem :<|> GetItems
+itemsAPI :: (Int -> AppCtx Item) :<|> AppCtx [Item]
+itemsAPI = getItem :<|> getItems
+
+type API = UsersAPI :<|> ItemsAPI
 
 api :: Server API
-api = getUser :<|> getUsers :<|> validateUser :<|> getItem :<|> getItems
+api = usersAPI :<|> itemsAPI
