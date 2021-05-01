@@ -9,6 +9,7 @@ import FancyRouting (serve)
 import JSON (JSON, jsonSerialize)
 import Network.HTTP.Types
   ( status200,
+    status400,
     status404,
     status500,
   )
@@ -54,5 +55,6 @@ handle = either handleError respondJSON
   where
     handleError = \case
       Error404 msg -> responseLBS status404 [] msg
+      Error400 msg -> responseLBS status400 [] msg
       Error500 _ -> responseLBS status500 [] "Something went wrong"
     respondJSON = responseLBS status200 [] . LB.pack . jsonSerialize

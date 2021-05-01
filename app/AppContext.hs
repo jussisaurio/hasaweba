@@ -24,7 +24,7 @@ newtype Env = Env
   { config :: Config
   }
 
-data Error = Error404 LBS.ByteString | Error500 LBS.ByteString
+data Error = Error404 LBS.ByteString | Error500 LBS.ByteString | Error400 LBS.ByteString
 
 -- AppContext is a monad that has read access to an Env, performs some IO, and returns either e or t
 newtype AppContext e t = AppContext {runWithCtx :: Env -> IO (Either e t)}

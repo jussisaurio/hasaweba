@@ -29,15 +29,22 @@ getItem itid = do
 getItems :: AppCtx [Item]
 getItems = runDB "SELECT * from items" Nothing :: AppCtx [Item]
 
+validateUser :: Int -> User -> AppCtx User
+validateUser uid user' = do
+  dbUser <- getUser uid
+  if dbUser == user' then pure user' else throwError (Error400 "Not the same user")
+
 type GetUser = GET :> "users" :> Capture Int :> Respond User
 
 type GetUsers = GET :> "users" :> Respond [User]
+
+type ValidateUser = POST :> "users" :> Capture Int :> "validate" :> BodyParser User :> Respond User
 
 type GetItem = GET :> "items" :> Capture Int :> Respond Item
 
 type GetItems = GET :> "items" :> Respond [Item]
 
-type API = GetUser :<|> GetUsers :<|> GetItem :<|> GetItems
+type API = GetUser :<|> GetUsers :<|> ValidateUser :<|> GetItem :<|> GetItems
 
 api :: Server API
-api = getUser :<|> getUsers :<|> getItem :<|> getItems
+api = getUser :<|> getUsers :<|> validateUser :<|> getItem :<|> getItems
