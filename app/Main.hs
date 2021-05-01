@@ -3,7 +3,6 @@ module Main where
 import AppContext (Config (..), Env (..), Error (..), runApp)
 import qualified Data.ByteString.Lazy.Char8 as LB
 import Data.Proxy (Proxy (..))
-import qualified Data.Text as T
 import qualified Database.SQLite.Simple as SQLite
 import FancyRouting (serve)
 import JSON (JSON, jsonSerialize)
@@ -26,8 +25,6 @@ cfg = Config {db = "hasa.db"}
 
 env :: Env
 env = Env {config = cfg}
-
-data Route = GetUser T.Text | GetUsers | GetItem T.Text | GetItems deriving (Show)
 
 initDB :: String -> IO ()
 initDB dbname = do
