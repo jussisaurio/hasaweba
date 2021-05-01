@@ -30,16 +30,16 @@ getItem itid = do
 getItems :: AppCtx [Item]
 getItems = runDB "SELECT * from items" Nothing :: AppCtx [Item]
 
-validateUser :: Int -> User -> AppCtx User
+validateUser :: Int -> User -> AppCtx String
 validateUser uid user' = do
   dbUser <- getUser uid
-  if dbUser == user' then pure user' else throwError (Error400 "Not the same user")
+  if dbUser == user' then pure "Yes, it is the same user as in the DB" else throwError (Error400 "Not the same user")
 
 type GetUser = GET :> "users" :> Capture Int :> Respond User JSON
 
 type GetUsers = GET :> "users" :> Respond [User] JSON
 
-type ValidateUser = POST :> "users" :> Capture Int :> "validate" :> BodyParser User :> Respond User String
+type ValidateUser = POST :> "users" :> Capture Int :> "validate" :> BodyParser User :> Respond String String
 
 type GetItem = GET :> "items" :> Capture Int :> Respond Item JSON
 
