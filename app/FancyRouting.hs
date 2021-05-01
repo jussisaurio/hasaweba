@@ -84,12 +84,12 @@ instance (Show a, Read a, HasServer r x z) => HasServer (Capture a :> r) x z whe
   route _ handler (method, x : xs, z) = readMaybe (T.unpack x) >>= \a -> route (Proxy :: Proxy r) (handler a) (method, xs, z)
   route _ _ _ = Nothing
 
-instance (FromJSON a, HasServer r x ByteString) => HasServer (BodyParser a :> r) x ByteString where
+instance (FromJSON a, HasServer r x ByteString, HasServer r x a) => HasServer (BodyParser a :> r) x ByteString where
   route :: Proxy (BodyParser a :> r) -> (a -> Server r) -> (T.Text, [T.Text], ByteString) -> Maybe (AppCtx x)
   route _ handler (method, xs, z) =
     case parseBody z of
       Left e -> Just (throwError e)
-      Right val -> route (Proxy :: Proxy r) (handler val) (method, xs, z)
+      Right val -> route (Proxy :: Proxy r) (handler val) (method, xs, val)
 
 parseBody :: (FromJSON a) => ByteString -> Either Error a
 parseBody body = first (const $ Error400 "Invalid request body") $ tokenize (LB.unpack body) >>= jsonParse >>= fromJSON
