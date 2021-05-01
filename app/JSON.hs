@@ -208,19 +208,20 @@ class GenericFromJSON (f :: * -> *) where
         mapped = map (\(JSONKey k, v) -> (JSONKey (map toLower cname ++ capitalize k), v)) entries
         capitalize "" = ""
         capitalize (x : xs) = toUpper x : xs
+    _ -> Left "unexpected type of JSON"
 
 instance FromJSON Int where
   fromJSON = \case
-    (JSONNumber n) -> case readMaybe n of
+    (JSONNumber n) -> case readMaybe n :: Maybe Double of
       Nothing -> Left "Failed to parse int"
-      (Just n) -> if n == fromInteger (round n) then Right (round n) else Left "failed to parse Int, got a non-integer number"
+      (Just n') -> if n' == fromInteger (round n') then Right (round n') else Left "failed to parse Int, got a non-integer number"
     other -> Left $ "Failed to parse Int, got " <> show other
 
 instance FromJSON Double where
   fromJSON = \case
     (JSONNumber n) -> case readMaybe n of
       Nothing -> Left "Failed to parse double"
-      (Just n) -> Right n
+      (Just n') -> Right n'
     other -> Left $ "Failed to parse Int, got " <> show other
 
 instance FromJSON T.Text where

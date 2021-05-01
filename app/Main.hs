@@ -5,7 +5,6 @@ import qualified Data.ByteString.Lazy.Char8 as LB
 import Data.Proxy (Proxy (..))
 import qualified Database.SQLite.Simple as SQLite
 import FancyRouting (serve)
-import JSON (JSON, jsonSerialize)
 import Network.HTTP.Types
   ( status200,
     status400,
@@ -47,11 +46,11 @@ proxy = Proxy
 app :: Env -> Application
 app env' request callback = runApp (serve proxy api request) env' >>= callback . handle
 
-handle :: Either Error JSON -> Response
-handle = either handleError respondJSON
+handle :: Either Error LB.ByteString -> Response
+handle = either handleError handleSuccess
   where
     handleError = \case
       Error404 msg -> responseLBS status404 [] msg
       Error400 msg -> responseLBS status400 [] msg
       Error500 _ -> responseLBS status500 [] "Something went wrong"
-    respondJSON = responseLBS status200 [] . LB.pack . jsonSerialize
+    handleSuccess = responseLBS status200 []

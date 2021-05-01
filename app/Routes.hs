@@ -3,6 +3,7 @@ module Routes where
 import AppContext
 import Control.Monad.Except
 import FancyRouting
+import JSON
 import Model
 
 safeHead :: [a] -> Maybe a
@@ -34,15 +35,15 @@ validateUser uid user' = do
   dbUser <- getUser uid
   if dbUser == user' then pure user' else throwError (Error400 "Not the same user")
 
-type GetUser = GET :> "users" :> Capture Int :> Respond User
+type GetUser = GET :> "users" :> Capture Int :> Respond User JSON
 
-type GetUsers = GET :> "users" :> Respond [User]
+type GetUsers = GET :> "users" :> Respond [User] JSON
 
-type ValidateUser = POST :> "users" :> Capture Int :> "validate" :> BodyParser User :> Respond User
+type ValidateUser = POST :> "users" :> Capture Int :> "validate" :> BodyParser User :> Respond User String
 
-type GetItem = GET :> "items" :> Capture Int :> Respond Item
+type GetItem = GET :> "items" :> Capture Int :> Respond Item JSON
 
-type GetItems = GET :> "items" :> Respond [Item]
+type GetItems = GET :> "items" :> Respond [Item] JSON
 
 type API = GetUser :<|> GetUsers :<|> ValidateUser :<|> GetItem :<|> GetItems
 

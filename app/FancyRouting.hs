@@ -20,11 +20,20 @@ import Network.Wai
 import Text.Read
 
 -- Adapted (stolen) from https://www.well-typed.com/blog/2015/11/implementing-a-minimal-version-of-haskell-servant/
-data Respond (a :: *)
+data Respond (a :: *) (t :: *)
 
 data GET
 
 data POST
+
+class ResponseType a where
+  encode :: a -> ByteString
+
+instance ResponseType JSON where
+  encode = LB.pack . jsonSerialize
+
+instance ResponseType String where
+  encode = LB.pack
 
 data a :<|> b = a :<|> b
 
@@ -40,7 +49,7 @@ data BodyParser (a :: *)
 
 type family Server layout :: *
 
-type instance Server (Respond a) = AppCtx a
+type instance Server (Respond a t) = AppCtx a
 
 type instance Server (a :<|> b) = Server a :<|> Server b
 
@@ -61,8 +70,12 @@ type PathParts = [T.Text]
 class HasServer layout returnT body where
   route :: Proxy layout -> Server layout -> (Method, PathParts, body) -> Maybe (AppCtx returnT)
 
-instance (ToJSON a) => HasServer (Respond a) JSON body where
-  route _ handler (_, [], _) = Just (toJSON <$> handler)
+instance (ToJSON a) => HasServer (Respond a JSON) ByteString body where
+  route _ handler (_, [], _) = Just (encode . toJSON <$> handler)
+  route _ _ _ = Nothing
+
+instance (Show a) => HasServer (Respond a String) ByteString body where
+  route _ handler (_, [], _) = Just (encode . show <$> handler)
   route _ _ _ = Nothing
 
 instance (HasServer a returnT body, HasServer b returnT body) => HasServer (a :<|> b) returnT body where
